@@ -8,10 +8,14 @@ from torch.utils import data
 import torch.nn as nn
 import os.path as osp
 import yaml
-from utils.logger import Logger 
+# from utils.logger import Logger 
 from dataset.dataset import *
-from easydict import EasyDict as edict
+from easydict import EasyDict as edictignore-label
 from tqdm import tqdm
+from PIL import Image
+import json
+import torchvision
+import cv2
 
 def get_arguments():
     """Parse all the arguments provided from the CLI.
@@ -48,6 +52,7 @@ def compute_iou(model, testloader, args):
             output =  model(image.cuda())
             label = label.cuda()
             output = interp(output).squeeze()
+            save_pred(output, './save/' + args.dataset, args.dataset +str(index)+'.png')
             C, H, W = output.shape
             Mask = (label.squeeze())<C
 
@@ -79,27 +84,53 @@ def compute_iou(model, testloader, args):
         print_iou(iou, acc, mIoU, mAcc)
         return iou, mIoU, acc, mAcc
 
+def label_img_to_color(img):
+    with open('./dataset/cityscapes_list/info.json') as f:
+        data = json.load(f)
+
+    img_height, img_width = img.shape
+
+    img_color = np.zeros((img_height, img_width, 3))
+    for row in range(img_height):
+        for col in range(img_width):
+            label = img[row, col]
+
+            # img_color[row, col] = np.array(label_to_color[label])
+            img_color[row, col] = np.asarray(data['palette'][label])
+
+    return img_color
+
+
+def save_pred(pred, direc, name):
+    with open('./dataset/cityscapes_list/info.json') as f:
+        data = json.load(f)
+    pred = pred.cpu().numpy()
+    pred = np.asarray(np.argmax(pred, axis=0), dtype=np.uint8)
+    label_img_color = label_img_to_color(pred)
+    cv2.imwrite(osp.join(direc,name), label_img_color)
+
 def main():
     args = get_arguments()
-    with open('./config/config.yml') as f:
+    with open('./config/so_configmod.yml') as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
     cfg = edict(cfg)
     cfg.num_classes=args.num_classes
     if args.single:
         #from model.fuse_deeplabv2 import Res_Deeplab
         if args.model=='deeplab':
-            model = Res_Deeplab(num_classes=args.num_classes)
+            model = Res_Deeplab(num_classes=args.num_classes).cuda()
         else:
             model = FCN8s(num_classes = args.num_classes).cuda() 
 
-        #model = nn.DataParallel(model)
-        model.load_state_dict(torch.load(args.frm,map_location='cuda:0'))
+        model = nn.DataParallel(model)
+        model.load_state_dict(torch.load(args.frm))
+        # model.load_state_dict(torch.load(args.frm,strict=False))
         model.eval().cuda()
         testloader = init_test_dataset(cfg, args.dataset, set='val')
         iou, mIoU, acc, mAcc = compute_iou(model, testloader, args)
         return
 
-    sys.stdout = Logger(osp.join(cfg['result'], args.frm+'.txt'))
+    # sys.stdout = Logger(osp.join(cfg['result'], args.frm+'.txt'))
 
     best_miou = 0.0
     best_iter = 0

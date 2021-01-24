@@ -30,6 +30,7 @@ class Trainer(BaseTrainer):
         # print(img.shape)
 
         seg_pred = self.model(img.cuda())
+        # print('yes')
         # print(seg_label.shape, seg_pred.shape)
         seg_loss = F.cross_entropy(seg_pred, seg_label, ignore_index=255)
         self.losses.seg_loss = seg_loss
@@ -37,7 +38,7 @@ class Trainer(BaseTrainer):
         loss.backward()
 
     def train(self):
-        writer = SummaryWriter(comment="exp_source_cityscape_b8_e1000")
+        writer = SummaryWriter(comment="btad")
 
         if self.config.neptune:
             neptune.init(project_qualified_name='solacex/segmentation-DA')
@@ -83,7 +84,7 @@ class Trainer(BaseTrainer):
                 loss_infor = 'train loss :{:.4f}'.format(train_epoch_loss)
                 print(loss_infor)
 
-                valid_epoch_loss = self.validate2(epoch)
+                valid_epoch_loss = self.validatebtad(epoch)
 
                 writer.add_scalars('Epoch_loss',{'train_epoch_loss': train_epoch_loss,'valid_epoch_loss':valid_epoch_loss},epoch)  
 
@@ -92,7 +93,7 @@ class Trainer(BaseTrainer):
                     print('********************')
                     print('best_val_epoch_loss: ', best_val_epoch_loss)
                     print("MODEL UPDATED")
-                    name = 'modelval.pth'
+                    name = 'btadval.pth'
                     torch.save(self.model.state_dict(), osp.join(self.config["snapshot"], name))
                     
                 self.model = self.model.train()

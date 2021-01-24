@@ -203,3 +203,69 @@ def init_test_dataset(config, dataset_name, set, selected=None, prop=None, label
                         set=set),
             batch_size=batchsize, shuffle=False, num_workers=4, pin_memory=True)
     return targetloader
+
+
+def init_test_datasetbtad(config, dataset_name, set, selected=None, prop=None, label_ori=None, fuse=False, batchsize=1, list_path='none'):
+    env = config[dataset_name]
+    max_prop = None
+    if dataset_name=='gta5' and set=='train':
+        max_prop = config.pool_prop
+    if dataset_name=='synthia' and set=='train':
+        max_prop = config.pool_prop
+
+    if list_path != 'none':
+        data_list = list_path
+        max_prop=None
+    else:
+        data_list = env.data_list
+
+    if prop is not None:
+        max_prop = prop
+    if selected is not None:
+        max_prop=None
+    
+    if label_ori is None:
+        if dataset_name == 'gta5' or dataset_name=='synthia':
+            label_ori=False
+        else:
+            label_ori=True
+
+    if not label_ori:
+        joint_transform = [joint_transforms.Resize((1024, 512))]
+        joint_transform = joint_transforms.Compose(joint_transform)
+        transform_list = [
+            transforms.FlipChannels(),
+            transforms.SubMean(),
+            transforms.ToTensor()
+            ]
+    else:
+        joint_transform = None
+        transform_list = [
+            transforms.Resize((1024, 512)),
+            transforms.FlipChannels(),
+            transforms.SubMean(),
+            transforms.ToTensor()
+            ]
+
+    train_transform = standard_transforms.Compose(transform_list)
+
+    if label_ori and dataset_name=='gta5':
+        label_transform = [transforms.ResizeLabel((1914, 1052)),
+                transforms.MaskToTensor()]
+        label_transform = standard_transforms.Compose(label_transform)
+    elif label_ori and dataset_name=='synthia':
+        label_transform = [transforms.ResizeLabel((1280, 760)),
+                transforms.MaskToTensor()]
+        label_transform = standard_transforms.Compose(label_transform)
+    else:
+        label_transform = transforms.MaskToTensor()
+    targetloader = data.DataLoader(
+            BaseDataSet(env.data_dir, data_list, dataset_name, config.num_classes, 
+                        joint_transform =  joint_transform,
+                        transform = train_transform,
+                        label_transform = label_transform,
+                        max_prop=max_prop,
+                        selected=selected,
+                        set=set),
+            batch_size=batchsize, shuffle=False, num_workers=4, pin_memory=True)
+    return targetloader

@@ -2,7 +2,8 @@ from easydict import EasyDict as edict
 from yaml import load, dump
 import yaml
 from utils.flatwhite import *
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 import torch
 import numpy as np
 import random
@@ -86,4 +87,3 @@ def init_config(config_path, argvs):
     message = show_config(config)
     print(message)
     return config, writer
-

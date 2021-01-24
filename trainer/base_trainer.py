@@ -6,6 +6,7 @@ import neptune
 from dataset import dataset
 from tqdm import tqdm
 import numpy as np
+import torch.nn.functional as F
 class BaseTrainer(object):
     def __init__(self, models, optimizers, loaders, up_s, up_t, config,  writer):
         self.model = models
@@ -109,4 +110,97 @@ class BaseTrainer(object):
                 neptune.send_metric('mIoU', mIoU)
                 neptune.send_metric('mAcc', mAcc)
         return mIoU
+
+    
+    def validate2(self, count):
+        self.model = self.model.eval()
+        total_loss = 0
+        testloader = dataset.init_test_dataset(self.config, self.config.target, set='val', batchsize=4)
+        interp = nn.Upsample(size=(1024, 2048), mode='bilinear', align_corners=True)
+        for i_iter, batch in tqdm(enumerate(testloader)):
+            img, seg_label, _, _, name = batch
+            seg_label = seg_label.long().cuda()
+            b, c, h, w = img.shape
+            # print(img.shape)
+            seg_pred = self.model(img.cuda())
+            # print(seg_pred.shape, seg_label.shape)
+            seg_pred = interp(seg_pred)
+            seg_loss = F.cross_entropy(seg_pred, seg_label, ignore_index=255)
+            total_loss += seg_loss.item()
+        total_loss /= len(iter(testloader))
+        print('---------------------')
+        print('Validation seg loss: {} at Epoch {}'.format(total_loss,count))
+        return total_loss
+    
+    def validatebtad(self, count):
+        self.model = self.model.eval()
+        total_loss = 0
+        testloader = dataset.init_test_datasetbtad(self.config, self.config.target, set='val')
+        interp = nn.Upsample(size=(1080,1920), mode='bilinear', align_corners=True)
+        union = torch.zeros(self.config.num_classes, 1,dtype=torch.float).cuda().float()
+        inter = torch.zeros(self.config.num_classes, 1, dtype=torch.float).cuda().float()
+        preds = torch.zeros(self.config.num_classes, 1, dtype=torch.float).cuda().float()
+        with torch.no_grad():
+            for index, batch in tqdm(enumerate(testloader)):
+                image, label, _, _, name = batch
+                output =  self.model(image.cuda())
+                label = label.cuda()
+                output = interp(output).squeeze()
+                C, H, W = output.shape
+                Mask = (label.squeeze())<C
+
+                pred_e = torch.linspace(0,C-1, steps=C).view(C, 1, 1)
+                pred_e = pred_e.repeat(1, H, W).cuda()
+                pred = output.argmax(dim=0).float()
+                pred_mask = torch.eq(pred_e, pred).byte()
+                pred_mask = pred_mask*Mask.byte()
+
+                label_e = torch.linspace(0,C-1, steps=C).view(C, 1, 1)
+                label_e = label_e.repeat(1, H, W).cuda()
+                label = label.view(1, H, W)
+                label_mask = torch.eq(label_e, label.float()).byte()
+                label_mask = label_mask*Mask.byte()
+
+                tmp_inter = label_mask+pred_mask.byte()
+                cu_inter = (tmp_inter==2).view(C, -1).sum(dim=1, keepdim=True).float()
+                cu_union = (tmp_inter>0).view(C, -1).sum(dim=1, keepdim=True).float()
+                cu_preds = pred_mask.view(C, -1).sum(dim=1, keepdim=True).float()
+
+                union+=cu_union
+                inter+=cu_inter
+                preds+=cu_preds
+
+            iou = inter/union
+            acc = inter/preds
+            if C==16:
+                iou = iou.squeeze()
+                class13_iou = torch.cat((iou[:3], iou[6:]))
+                class13_miou = class13_iou.mean().item()
+                print('13-Class mIoU:{:.2%}'.format(class13_miou))
+            mIoU = iou.mean().item()
+            mAcc = acc.mean().item()
+            iou = iou.cpu().numpy()
+            print('mIoU: {:.2%} mAcc : {:.2%} '.format(mIoU, mAcc))
+            if self.config.neptune:
+                neptune.send_metric('mIoU', mIoU)
+                neptune.send_metric('mAcc', mAcc)
+                
+        for i_iter, batch in tqdm(enumerate(testloader)):
+            img, seg_label, _, _, name = batch
+            seg_label = seg_label.long().cuda()
+            b, c, h, w = img.shape
+            # print(img.shape)
+            seg_pred = self.model(img.cuda())
+            # print(seg_pred.shape, seg_label.shape)
+            seg_pred = interp(seg_pred)
+            seg_loss = F.cross_entropy(seg_pred, seg_label, ignore_index=255)
+            total_loss += seg_loss.item()
+        total_loss /= len(iter(testloader))
+        print('---------------------')
+        print('Validation seg loss: {} at Epoch {}'.format(total_loss,count))
+        return total_loss
+
+
+        
+
 
