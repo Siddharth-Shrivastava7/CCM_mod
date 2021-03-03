@@ -86,14 +86,36 @@ class BaseDataSet(data.Dataset):
                     "name": name
                 })
 
-        elif dataset=='dark_zurichbtad' or dataset=='dark_zurich_valbtad' or dataset=='dark_zurich_val':
+        # elif dataset=='dark_zurichbtad' or dataset=='dark_zurich_valbtad' or dataset=='dark_zurich_val':
+        #     if self.plabel_path is None:
+        #         label_root = osp.join(self.root, 'gt')
+        #     else:
+        #         label_root = self.plabel_path 
+        #     for name in self.img_ids:
+        #         img_file = osp.join(self.root, "rgb_anon/%s" % (name))
+        #         label_name = name.replace('_rgb_anon', '_gt_labelIds')
+        #         label_file =osp.join(label_root, '%s' % (label_name))
+
+        #         # print(img_file)
+        #         # print(label_file)
+        #         # print(name)
+
+        #         self.files.append({
+        #             "img": img_file,
+        #             "label":label_file,
+        #             "name": name
+        #         })
+
+        elif dataset == 'dark_zurich_valbtad':
             if self.plabel_path is None:
                 label_root = osp.join(self.root, 'gt')
             else:
                 label_root = self.plabel_path 
             for name in self.img_ids:
-                img_file = osp.join(self.root, "rgb_anon/%s" % (name))
-                label_name = name.replace('_rgb_anon', '_gt_labelIds')
+                # print(name)
+                img_file = osp.join(self.root, "dark/%s" % (name))
+                label_name = name.replace('leftImg8bit', 'gtFine_labelIds')
+                # label_name = label_name.replace('.jpg', '.png')
                 label_file =osp.join(label_root, '%s' % (label_name))
 
                 # print(img_file)
@@ -105,6 +127,8 @@ class BaseDataSet(data.Dataset):
                     "label":label_file,
                     "name": name
                 })
+                # print(img_file)
+                # print(label_file)
 
         elif dataset=='night_city':
             if self.plabel_path is None:

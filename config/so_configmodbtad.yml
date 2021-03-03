@@ -43,7 +43,7 @@ scale_max: 1.5
 rec: False
         
 # Model hypers
-init_weight: './save/model410.pth'
+init_weight: './save/model410_city_deeplabv2.pth'
 restore_from: None
 
 snapshot: './savebtad/'
@@ -87,9 +87,9 @@ dark_zurichbtad: {
 
         
 dark_zurich_valbtad: {
-        data_dir: '/home/cse/staff/sid97.cstaff/scratch/data/dark_zurich/valbtad/',
-        data_list: './dataset/dark_zurich/valbtad.txt',
-        input_size: [1920, 1080]
+        data_dir: './inp/',
+        data_list: './dataset/dark.txt',
+        input_size: [2048, 1024]
         }
 
 # dark_zurich_val: {

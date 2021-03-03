@@ -35,7 +35,7 @@ class Trainer(BaseTrainer):
         seg_loss = F.cross_entropy(seg_pred, seg_label, ignore_index=255)
         self.losses.seg_loss = seg_loss
         loss = seg_loss  
-        loss.backward()
+        # loss.backward()
 
     def train(self):
         writer = SummaryWriter(comment="btad")
@@ -72,7 +72,7 @@ class Trainer(BaseTrainer):
                 # print(self.losses['seg_loss'].item())
                 # print(cu_iter)
                 train_epoch_loss += self.losses['seg_loss'].item()
-                self.optim.step()
+                # self.optim.step() 
 
             train_epoch_loss /= len(iter(self.loader)) 
             # if cu_iter % self.config.print_freq ==0:
