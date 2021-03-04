@@ -164,7 +164,7 @@ class BaseDataSet(data.Dataset):
             name = datafiles["name"]
 
             label = np.asarray(label, np.uint8)
-            label_copy = 255 * np.ones(label.shape, dtype=np.uint8)
+            
             if self.plabel_path is None:
                 for k, v in self.id2train.items():
                     label_copy[label == k] = v
