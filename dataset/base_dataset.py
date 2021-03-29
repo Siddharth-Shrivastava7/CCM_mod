@@ -162,8 +162,9 @@ class BaseDataSet(data.Dataset):
             image = Image.open(datafiles["img"]).convert('RGB')
             label = Image.open(datafiles["label"])
             name = datafiles["name"]
-
+           
             label = np.asarray(label, np.uint8)
+            label_copy = 255 * np.ones(label.shape, dtype=np.uint8) # initialise label_copy variable
             
             if self.plabel_path is None:
                 for k, v in self.id2train.items():
