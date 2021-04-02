@@ -50,10 +50,11 @@ val: True
 val_freq: 300
 
 # Dataset 
-source: 'gta5'
-target: 'cityscapes'
+source: 'cityscapes' 
+target: 'darkzurich'
+target_val: 'darkzurich_val' 
 worker: 4
-batch_size: 2
+batch_size: 4 #chg
 num_classes: 19
 
 #Transforms
@@ -67,13 +68,13 @@ scale_max: 1.5
 rec: False
         
 # Model hypers
-init_weight: './gta5_source_only.pth'
+init_weight: '../scratch/saved_models/CCM/source/model410_city_deeplabv2.pth'
 restore_from: None
 
-snapshot: '../Data/snapshot/'
-result: './miou_result/'
-log: './log/'
-plabel: './plabel'
+snapshot: '../scratch/saved_models/CCM/save/'
+result: '../scratch/saved_models/CCM/miou_result/'
+log: '../scratch/saved_models/CCM/log/'
+plabel: '../scratch/saved_models/CCM/plabel/'
 gta5: {
         data_dir: '/data/uts200/guangrui/gta5/',
         data_list: './dataset/list/gta5_list.txt',
@@ -85,7 +86,17 @@ synthia: {
         input_size: [1280, 760]
         }
 cityscapes: {
-        data_dir: '/home/guangrui/data/cityscapes',
-        data_list: './dataset/list/cityscapes_train.txt',
+        data_dir: '../scratch/data/cityscapes/',
+        data_list: './dataset/list/cityscapes/train.txt',
         input_size: [1024, 512]
-        }
+        } 
+darkzurich: {
+        data_dir: "../scratch/data/dark_zurich/",
+        data_list: './dataset/list/darkzurich/train.txt',
+        input_size: [1024,512]
+}
+darkzurich_val: {
+        data_dir: "../scratch/data/dark_zurich_val/",
+        data_list: './dataset/list/darkzurich/val.txt',
+        input_size: [1024,512]
+}

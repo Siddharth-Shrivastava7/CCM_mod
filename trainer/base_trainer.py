@@ -60,8 +60,8 @@ class BaseTrainer(object):
 
     def validate(self):
         self.model = self.model.eval()
-        testloader = dataset.init_test_dataset(self.config, self.config.target, set='val')
-        interp = nn.Upsample(size=(1024, 2048), mode='bilinear', align_corners=True)
+        testloader = dataset.init_test_dataset(self.config, self.config.target_val, set='val')
+        interp = nn.Upsample(size=(1080, 1920), mode='bilinear', align_corners=True)
         union = torch.zeros(self.config.num_classes, 1,dtype=torch.float).cuda().float()
         inter = torch.zeros(self.config.num_classes, 1, dtype=torch.float).cuda().float()
         preds = torch.zeros(self.config.num_classes, 1, dtype=torch.float).cuda().float()

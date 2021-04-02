@@ -38,7 +38,7 @@ class BaseDataSet(data.Dataset):
 
         if not max_iters==None:
             # print(len(self.img_ids))
-            # self.img_ids = self.img_ids * int(np.ceil(float(max_iters) / len(self.img_ids))) #org
+            self.img_ids = self.img_ids * int(np.ceil(float(max_iters) / len(self.img_ids))) #org
             # print(len(self.img_ids))
             # print(len(self.img_ids))
             pass
@@ -77,6 +77,7 @@ class BaseDataSet(data.Dataset):
             else:
                 label_root = self.plabel_path 
             for name in self.img_ids:
+                # print(name)
                 img_file = osp.join(self.root, "leftImg8bit/%s/%s" % (self.set, name))
                 label_name = name.replace('leftImg8bit', 'gtFine_labelIds')
                 label_file =osp.join(label_root, '%s' % (label_name))
@@ -85,50 +86,44 @@ class BaseDataSet(data.Dataset):
                     "label":label_file,
                     "name": name
                 })
+                # print(img_file)
+                # print(label_file)
 
-        # elif dataset=='dark_zurichbtad' or dataset=='dark_zurich_valbtad' or dataset=='dark_zurich_val':
-        #     if self.plabel_path is None:
-        #         label_root = osp.join(self.root, 'gt')
-        #     else:
-        #         label_root = self.plabel_path 
-        #     for name in self.img_ids:
-        #         img_file = osp.join(self.root, "rgb_anon/%s" % (name))
-        #         label_name = name.replace('_rgb_anon', '_gt_labelIds')
-        #         label_file =osp.join(label_root, '%s' % (label_name))
-
-        #         # print(img_file)
-        #         # print(label_file)
-        #         # print(name)
-
-        #         self.files.append({
-        #             "img": img_file,
-        #             "label":label_file,
-        #             "name": name
-        #         })
-
-        elif dataset == 'dark_zurich_valbtad':
+        elif dataset == 'darkzurich_val':
             if self.plabel_path is None:
                 label_root = osp.join(self.root, 'gt')
             else:
                 label_root = self.plabel_path 
             for name in self.img_ids:
                 # print(name)
-                img_file = osp.join(self.root, "dark/%s" % (name))
-                label_name = name.replace('leftImg8bit', 'gtFine_labelIds')
-                # label_name = label_name.replace('.jpg', '.png')
-                label_file =osp.join(label_root, '%s' % (label_name))
+                img_file = osp.join(self.root, "rgb_anon/%s_rgb_anon.png" % (name))
+                label_file =osp.join(label_root, '%s_gt_labelIds.png' % (name))
 
                 # print(img_file)
                 # print(label_file)
-                # print(name)
 
                 self.files.append({
                     "img": img_file,
                     "label":label_file,
                     "name": name
                 })
-                # print(img_file)
-                # print(label_file)
+
+        elif dataset == 'darkzurich':
+            if self.plabel_path is None:
+                label_root = ''
+            else:
+                label_root = self.plabel_path 
+            for name in self.img_ids:
+                img_file = osp.join(self.root, "rgb_anon/%s_rgb_anon.png" % (name))
+                if self.plabel_path is None:
+                    label_file = []
+                else:
+                    label_file =osp.join(label_root, '%s_gt_labelIds.png' % (name))               
+                self.files.append({
+                    "img": img_file,
+                    "label":label_file,
+                    "name": name
+                })
 
         elif dataset=='night_city':
             if self.plabel_path is None:
@@ -160,24 +155,31 @@ class BaseDataSet(data.Dataset):
 
         try:
             image = Image.open(datafiles["img"]).convert('RGB')
-            label = Image.open(datafiles["label"])
-            name = datafiles["name"]
-
-            label = np.asarray(label, np.uint8)
-            
-            if self.plabel_path is None:
-                for k, v in self.id2train.items():
-                    label_copy[label == k] = v
+            if self.dataset == 'darkzurich' and self.plabel_path is None: # trg no gt labels
+                label = []
             else:
-                label_copy = label
-            label = Image.fromarray(label_copy.astype(np.uint8))
-            if self.joint_transform is not None:
-                image, label = self.joint_transform(image, label, None)
+                label = Image.open(datafiles["label"])
+                label = np.asarray(label, np.uint8)
+                label_copy = 255 * np.ones(label.shape, dtype=np.uint8)
+                # print(datafiles['label']) # error is for dz pseudo labels
+                if self.plabel_path is None:
+                    for k, v in self.id2train.items():
+                        label_copy[label == k] = v
+                else:
+                    label_copy = label
+                label = Image.fromarray(label_copy.astype(np.uint8))
+                if self.joint_transform is not None:
+                    image, label = self.joint_transform(image, label, None)
+                if self.label_transform is not None:
+                    label = self.label_transform(label)
+
+            name = datafiles["name"]            
+            
             if self.transform is not None:
                 image = self.transform(image)
-            if self.label_transform is not None:
-                label = self.label_transform(label)
+           
         except Exception as e:
+            # print('hi')
             print(index)
             index = index - 1 if index > 0 else index + 1
             return self.__getitem__(index)

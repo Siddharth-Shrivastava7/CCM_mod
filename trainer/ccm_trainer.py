@@ -64,11 +64,12 @@ class Trainer(BaseTrainer):
             random.seed(1234)
             self.model = self.model.train()
 
-            self.source_all = get_list(self.config.gta5.data_list)
-            self.target_all = get_list(self.config.cityscapes.data_list)#[:100]
-
+            self.source_all = get_list(self.config.cityscapes.data_list) 
+            self.target_all = get_list(self.config.darkzurich.data_list)
+            
+            
             self.cb_thres = self.gene_thres(self.config.cb_prop)
-            self.save_pred(r)
+            self.save_pred(r) # r is proportion of reliable pseudo labels
             self.plabel_path = osp.join(self.config.plabel, self.config.note, str(r))
 
             # Semantic Layout Matching
@@ -167,7 +168,9 @@ class Trainer(BaseTrainer):
         # Using the threshold to generate pseudo labels and save  
         print("[Generate pseudo labels]")
         loader = dataset.init_test_dataset(self.config, self.config.target, set="train", selected=self.target_all)
-        interp = nn.Upsample(size=(1024, 2048), mode="bilinear", align_corners=True)
+        
+        # interp = nn.Upsample(size=(1024, 2048), mode="bilinear", align_corners=True)
+        interp = nn.Upsample(size=(1080, 1920), mode="bilinear", align_corners=True)
 
         self.plabel_path = osp.join(self.config.plabel, self.config.note, str(round))
 
@@ -182,13 +185,14 @@ class Trainer(BaseTrainer):
         with torch.no_grad():
             for index, batch in tqdm(enumerate(loader)):
                 image, label, _, _, name = batch
-                label = label.cuda()
-                img_name = name[0].split("/")[-1]
-                dir_name = name[0].split("/")[0]
-                img_name = img_name.replace("leftImg8bit", "gtFine_labelIds")
-                temp_dir = osp.join(self.plabel_path, dir_name)
+        
+                # label = label.cuda() # dz doesn't have train gt labels
+                img_name = name[0].split("/")[-1] 
+
+                # dir_name = name[0].split("/")[0]
+                temp_dir = osp.join(self.plabel_path, name[0].split("/")[0], name[0].split("/")[1], name[0].split("/")[2])
                 if not os.path.exists(temp_dir):
-                    os.mkdir(temp_dir)
+                    os.makedirs(temp_dir)
 
                 output = self.model.forward(image.cuda())
                 output = interp(output)
@@ -200,23 +204,28 @@ class Trainer(BaseTrainer):
                 # The fusion strategy is detailed in Sec. 3.3 of paper
                 mask, plabel = mask_fusion(output, mask, mask2)
                 self.pool.update_pool(output, mask=mask.float())
-                acc, prop, cls_dict = Acc(plabel, label, num_cls=self.config.num_classes)
-                cnt = (plabel != 255).sum().item()
-                accs.update(acc, cnt)
-                props.update(prop, 1)
-                cls_acc.update(cls_dict)
-                plabel = plabel.view(1024, 2048)
+                
+                # dz doesn't have train gt labels
+                # acc, prop, cls_dict = Acc(plabel, label, num_cls=self.config.num_classes)
+                # cnt = (plabel != 255).sum().item()
+                # accs.update(acc, cnt)
+                # props.update(prop, 1)
+                # cls_acc.update(cls_dict)
+
+                # plabel = plabel.view(1024, 2048)
+                plabel = plabel.view(1080, 1920)
                 plabel = plabel.cpu().numpy()
 
                 plabel = np.asarray(plabel, dtype=np.uint8)
                 plabel = Image.fromarray(plabel)
 
-                plabel.save("%s/%s.png" % (temp_dir, img_name.split(".")[0]))
+                # plabel.save("%s/%s.png" % (temp_dir, img_name.split(".")[0]))
+                plabel.save("%s/%s" % (temp_dir, '%s_gt_labelIds.png' % (img_name)))
 
-        print('The Accuracy :{:.2%} and proportion :{:.2%} of Pseudo Labels'.format(accs.avg.item(), props.avg.item()))
+        # print('The Accuracy :{:.2%} and proportion :{:.2%} of Pseudo Labels'.format(accs.avg.item(), props.avg.item()))
         if self.config.neptune:
             neptune.send_metric("Acc", accs.avg)
-            neptune.send_metric("Prop", props.avg)
+            neptune.send_metric("Prop", props.avg) 
 
 
     def semantic_layout_matching(self, round, num_to_sel):
@@ -338,6 +347,9 @@ class Trainer(BaseTrainer):
         elif self.config.source=='synthia':
             src_w = 1280
             src_h = 760
+        elif self.config.source=='cityscapes':
+            src_w = 2048
+            src_h = 1024
 
         interp = nn.Upsample(size=(src_h, src_w), mode="bilinear", align_corners=True)
         self.source_plabel_path = osp.join(self.config.plabel, self.config.note, str(round), self.config.source)
@@ -351,7 +363,13 @@ class Trainer(BaseTrainer):
             for index, batch in tqdm(enumerate(loader)):
                 image, label, _, _, name = batch
                 label = label.cuda()
-                name = name[0]
+                img_name = name[0].split("/")[-1]
+                img_name = img_name.replace('leftImg8bit', 'gtFine_labelIds')
+                dir_name = name[0].split("/")[0]
+                temp_dir = osp.join(self.source_plabel_path, dir_name)
+                if not os.path.exists(temp_dir):
+                    os.makedirs(temp_dir)
+
                 output = self.model.forward(image.cuda())
                 output = interp(output)
                 pred = F.softmax(output, dim=1)
@@ -364,7 +382,8 @@ class Trainer(BaseTrainer):
                 plabel = np.asarray(plabel, dtype=np.uint8)
                 plabel = Image.fromarray(plabel)
 
-                plabel.save("%s/%s.png" % (self.source_plabel_path, name.split(".")[0]))
+                # plabel.save("%s/%s.png" % (self.source_plabel_path, name.split(".")[0]))
+                plabel.save("%s/%s.png" % (temp_dir, img_name.split(".")[0]))
 
     def his_kl_simi(self, p1, p2):
         c,hw = p2.shape
@@ -394,5 +413,5 @@ class Trainer(BaseTrainer):
         return kl
 
     def save_model(self, iter):
-        tmp_name = "_".join(("GTA5", str(iter))) + ".pth"
+        tmp_name = "_".join(("cityscapes", str(iter))) + ".pth"
         torch.save(self.model.state_dict(), osp.join(self.config["snapshot"], tmp_name))

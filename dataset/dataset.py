@@ -146,6 +146,8 @@ def init_test_dataset(config, dataset_name, set, selected=None, prop=None, label
         max_prop = config.pool_prop
     if dataset_name=='synthia' and set=='train':
         max_prop = config.pool_prop
+    if dataset_name=='cityscapes' and set=='train':
+        max_prop = config.pool_prop
 
     if list_path != 'none':
         data_list = list_path
@@ -159,7 +161,7 @@ def init_test_dataset(config, dataset_name, set, selected=None, prop=None, label
         max_prop=None
     
     if label_ori is None:
-        if dataset_name == 'gta5' or dataset_name=='synthia':
+        if dataset_name == 'gta5' or dataset_name=='synthia' or dataset_name=='cityscapes':
             label_ori=False
         else:
             label_ori=True
@@ -189,6 +191,10 @@ def init_test_dataset(config, dataset_name, set, selected=None, prop=None, label
         label_transform = standard_transforms.Compose(label_transform)
     elif label_ori and dataset_name=='synthia':
         label_transform = [transforms.ResizeLabel((1280, 760)),
+                transforms.MaskToTensor()]
+        label_transform = standard_transforms.Compose(label_transform)
+    elif label_ori and dataset_name=='cityscapes':
+        label_transform = [transforms.ResizeLabel((2048, 1024)),
                 transforms.MaskToTensor()]
         label_transform = standard_transforms.Compose(label_transform)
     else:
